@@ -1,0 +1,21 @@
+<routes xmlns="http://camel.apache.org/schema/spring">
+    <route id="dummy-route" streamCache="true">
+        <from uri="timer://foo?period=2000"/>
+
+        <transform>
+            <method beanType="org.apache.commons.lang3.RandomStringUtils" method="randomNumeric(3)"/>
+        </transform>
+
+        <choice>
+            <when>
+                <simple>${body} &gt; 500</simple>
+                <log message="High priority message : ${body}" logName="test"/>
+                <to uri="stream:out"/>
+            </when>
+            <otherwise>
+                <log message="Low priority message  : ${body}" logName="test"/>
+                <to uri="stream:out"/>
+            </otherwise>
+        </choice>
+    </route>
+</routes>
