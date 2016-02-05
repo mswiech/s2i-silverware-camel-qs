@@ -16,23 +16,8 @@
       <version.commons.lang3>3.4</version.commons.lang3>
       <version.maven.clean>2.5</version.maven.clean>
       <version.maven.compiler>3.3</version.maven.compiler>
-      <version.maven.surefire>2.18.1</version.maven.surefire>
-      <version.maven.findbugs>3.0.0</version.maven.findbugs>
-      <version.maven.project.reports>2.7</version.maven.project.reports>
       <version.maven.jar.plugin>2.4</version.maven.jar.plugin>
       <version.maven.dependency.plugin>2.8</version.maven.dependency.plugin>
-      <version.maven.jolokia.docker.plugin>0.13.6</version.maven.jolokia.docker.plugin>
-
-      <!-- Docker & Fabric8 Configs -->
-      <docker.from>registry.access.redhat.com/jboss-fuse-6/fis-java-openshift:1.0</docker.from>
-      <fabric8.dockerUser>${oc.project}/</fabric8.dockerUser>
-      <docker.image.simple>${fabric8.dockerUser}${project.artifactId}:${project.version}</docker.image.simple>
-      <docker.port.container.jolokia>8778</docker.port.container.jolokia>
-
-      <fabric8.label.component>${project.artifactId}</fabric8.label.component>
-      <fabric8.label.container>java</fabric8.label.container>
-      <fabric8.label.group>quickstarts</fabric8.label.group>
-      <fabric8.iconRef>camel</fabric8.iconRef>
    </properties>
 
    <dependencyManagement>
@@ -49,6 +34,11 @@
             <artifactId>camel-stream</artifactId>
             <version>${version.apache.camel}</version>
          </dependency>
+         <dependency>
+            <groupId>org.apache.camel</groupId>
+            <artifactId>camel-mqtt</artifactId>
+            <version>${version.apache.camel}</version>
+         </dependency>
       </dependencies>
    </dependencyManagement>
 
@@ -59,11 +49,23 @@
       </dependency>
       <dependency>
          <groupId>io.silverware</groupId>
+         <artifactId>cdi-microservice-provider</artifactId>
+      </dependency>
+      <dependency>
+         <groupId>io.silverware</groupId>
          <artifactId>camel-microservice-provider</artifactId>
+      </dependency>
+      <dependency>
+         <groupId>io.silverware</groupId>
+         <artifactId>camel-cdi-integration</artifactId>
       </dependency>
       <dependency>
          <groupId>org.apache.camel</groupId>
          <artifactId>camel-stream</artifactId>
+      </dependency>
+      <dependency>
+         <groupId>org.apache.camel</groupId>
+         <artifactId>camel-mqtt</artifactId>
       </dependency>
       <dependency>
          <groupId>org.apache.commons</groupId>
@@ -159,15 +161,11 @@
                   </execution>
                </executions>
             </plugin>
-            <plugin>
-               <artifactId>maven-surefire-plugin</artifactId>
-               <version>${version.maven.surefire}</version>
-               <configuration>
-                  <forkCount>1</forkCount>
-               </configuration>
-            </plugin>
          </plugins>
       </pluginManagement>
+
+
+
       <plugins>
 
          <!-- just for manuall run using command 'java -jar ${project.build.finalName}.jar' -->
@@ -177,30 +175,7 @@
             <version>${version.maven.dependency.plugin}</version>
          </plugin>
 
-         <!-- required for manual OpenShift deploy  -->
-         <plugin>
-            <groupId>io.fabric8</groupId>
-            <artifactId>fabric8-maven-plugin</artifactId>
-            <version>${version.fabric8}</version>
-            <executions>
-               <execution>
-                  <id>json</id>
-                  <phase>generate-resources</phase>
-                  <goals>
-                     <goal>json</goal>
-                  </goals>
-               </execution>
-               <execution>
-                  <id>attach</id>
-                  <phase>package</phase>
-                  <goals>
-                     <goal>attach</goal>
-                  </goals>
-               </execution>
-            </executions>
-         </plugin>
-
-         <!-- required for s2i openshift build and for manual OpenShift deploy-->
+         <!-- required for s2i openshift build and deploy-->
          <plugin>
             <groupId>io.fabric8</groupId>
             <artifactId>hawt-app-maven-plugin</artifactId>
@@ -218,85 +193,7 @@
             </executions>
          </plugin>
 
-         <!-- required for manual OpenShift deploy  -->
-         <plugin>
-            <groupId>org.jolokia</groupId>
-            <artifactId>docker-maven-plugin</artifactId>
-            <version>${version.maven.jolokia.docker.plugin}</version>
-            <configuration>
-               <images>
-                  <image>
-                     <name>${docker.image}</name>
-                     <build>
-                        <from>${docker.from}</from>
-                        <assembly>
-                           <basedir>/deployments</basedir>
-                           <descriptorRef>hawt-app</descriptorRef>
-                        </assembly>
-                        <env>
-                           <JAVA_LIB_DIR>/deployments/lib</JAVA_LIB_DIR>
-                           <JAVA_MAIN_CLASS>io.silverware.microservices.Boot</JAVA_MAIN_CLASS>
-                        </env>
-                     </build>
-                  </image>
-               </images>
-            </configuration>
-         </plugin>
-
       </plugins>
    </build>
-
-
-   <!--
-   Profiles:
-
-   mvn -Pf8-deploy-image          ... build and push to Docker registry
-   mvn -Pf8-deploy-application    ... apply deployment to OpenShift
-
-   For individual goal usage please consult the fabric8 documentation
-   -->
-
-   <!--
-   Sample usage for manual OpenShift deployment:
-
-   export KUBERNETES_MASTER=https://192.168.122.101:8443
-   export KUBERNETES_DOMAIN=example.com
-   #DOCKER_HOST should be local docker which you are using
-   export DOCKER_HOST=unix:///var/run/docker.sock
-   #DOCKER_REGISTRY_OC is address to docker registry accessible from openshift
-   export DOCKER_REGISTRY_OC="172.30.184.174:5000"
-   #DOCKER_REGISTRY is address to docker registry accessible from local
-   export DOCKER_REGISTRY="registry.example.com:80"
-
-   oc login 192.168.122.101:8443
-
-   mvn -Pf8-deploy-image -Ddocker.registry.ext="$DOCKER_REGISTRY" -Ddocker.registry.int="$DOCKER_REGISTRY_OC" -Ddocker.username=$(oc whoami) -Ddocker.password=$(oc whoami -t) -Doc.project=$(oc project -q)
-   mvn -Pf8-deploy-application -Ddocker.registry.ext="$DOCKER_REGISTRY" -Ddocker.registry.int="$DOCKER_REGISTRY_OC" -Ddocker.username=$(oc whoami) -Ddocker.password=$(oc whoami -t) -Doc.project=$(oc project -q)
-
-   -->
-   <profiles>
-      <profile>
-         <id>f8-deploy-image</id>
-         <properties>
-            <docker.registry>${docker.registry.ext}</docker.registry>
-            <docker.image>${docker.image.simple}</docker.image>
-         </properties>
-         <build>
-            <defaultGoal>clean install docker:build docker:push</defaultGoal>
-         </build>
-      </profile>
-
-      <profile>
-         <id>f8-deploy-application</id>
-         <properties>
-            <fabric8.imagePullPolicySnapshot>Always</fabric8.imagePullPolicySnapshot>
-            <fabric8.recreate>true</fabric8.recreate>
-            <docker.image>${docker.registry.int}/${docker.image.simple}</docker.image>
-         </properties>
-         <build>
-            <defaultGoal>fabric8:json fabric8:apply</defaultGoal>
-         </build>
-      </profile>
-   </profiles>
 
 </project>

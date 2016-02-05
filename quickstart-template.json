@@ -28,6 +28,22 @@
       "description": "Git ref to build"
     },
     {
+      "name": "MQTT_USER",
+      "value": "mqtt",
+      "description": "Username for mqtt access"
+    },
+    {
+      "name": "MQTT_PASS",
+      "value": "mqtt",
+      "description": "Password for mqtt access"
+    },
+    {
+      "name": "MQTT_HOST",
+      "value": "mqtt.example.com:1883",
+      "required": true,
+      "description": "Address:port to mqtt host"
+    },
+    {
       "name": "SERVICE_NAME",
       "value": "s2i-silverware-camel-qs",
       "description": "Exposed Service name"
@@ -291,6 +307,12 @@
                     "containerPort": 8778,
                     "name": "jolokia",
                     "protocol": "TCP"
+                  }
+                ],
+                "env": [
+                  {
+                    "name": "JAVA_OPTIONS",
+                    "value": " -Dmqtt.user=${MQTT_USER} -Dmqtt.pass=${MQTT_PASS} -Dmqtt.host=${MQTT_HOST} -Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager "
                   }
                 ],
                 "resources": {}
